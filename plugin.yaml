@@ -1,0 +1,10 @@
+name: muninndb
+version: 1.2.1
+description: "Local cognitive memory via muninnDB REST API — v1.2.1 with MemoryType, Confidence, Linking, and auto-managed Lifecycle"
+hooks:
+  - sync_turn
+  - prefetch
+  - queue_prefetch
+  - on_session_end
+  - on_memory_write
+  - on_pre_compress
