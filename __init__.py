@@ -341,15 +341,14 @@ class MuninnDBProvider(MemoryProvider):
                 except Exception as e:
                     logger.warning("Failed to load muninndb.json: %s", e)
 
-        self._host = config.get("host", "localhost:8475")
+        self._host = config.get("host", "localhost:8475").rstrip("/")
         self._vault = config.get("vault", "hermes")
-        self._threshold = float(config.get("threshold", 0.5))
-        self._base_url = f"http://{self._host}"
+        try:
+            self._threshold = max(0.0, min(float(config.get("threshold", 0.5)), 1.0))
+        except (TypeError, ValueError):
+            self._threshold = 0.5
+        self._base_url = self._host if self._host.startswith(("http://", "https://")) else f"http://{self._host}"
         self._api_key = self._get_api_key_from_env() or ""
-
-        # Ensure http:// prefix for base_url if user omitted it
-        if not self._base_url.startswith("http"):
-            self._base_url = f"http://{self._base_url}"
 
         self._sync_thread: Optional[threading.Thread] = None
 
@@ -361,8 +360,9 @@ class MuninnDBProvider(MemoryProvider):
             lines.append(f"Tenant: {self._tenant}. All memory writes are scoped to this tenant.")
         lines.extend([
             "You have six tools: muninn_remember, muninn_recall, muninn_read, muninn_forget, muninn_link, muninn_update.",
-            "Use muninn_remember to persist facts. Set memory_type (Fact/Decision/Observation/Preference/Issue/Task), ",
-                "confidence (0.0-1.0), and memory_type (Fact/Decision/Observation/Preference/Issue/Task) for better organization.",
+            "Use muninn_remember to persist facts. Set memory_type "
+            "(Fact/Decision/Observation/Preference/Issue/Task) and confidence "
+            "(0.0-1.0) for better organization.",
             "Use muninn_link to connect related memories (e.g., a Task that depends_on a Decision).",
             "Use muninn_update to change a memory's confidence, content, or tags.",
             "Use muninn_recall for semantic search. Every turn is automatically synced to muninnDB.",
@@ -513,7 +513,8 @@ class MuninnDBProvider(MemoryProvider):
                 "concept": self._tenant_prefix(args["concept"]),
                 "content": args["content"],
                 "tags": self._tenant_tags(args.get("tags", [])),
-                "memory_type": memory_type_int,
+                # muninnDB's REST API calls this field `type`.
+                "type": memory_type_int,
                 "confidence": float(args.get("confidence", 0.8)),
             }
             return _json_request(
@@ -540,7 +541,7 @@ class MuninnDBProvider(MemoryProvider):
                     "vault": self._vault,
                     "context": [args["query"]],
                     "max_results": limit,
-                    "threshold": 0.5,
+                    "threshold": self._threshold,
                 },
                 timeout=3.0,
             )
@@ -599,7 +600,7 @@ class MuninnDBProvider(MemoryProvider):
                     return tool_error(f"muninnDB error: {result}")
                 # Reverse-map memory_type integer back to string for readability
                 _REVERSE_MEMORY_TYPE = {0: "Fact", 1: "Decision", 2: "Observation", 3: "Preference", 4: "Issue", 5: "Task"}
-                memory_type_int = result.get("memory_type")
+                memory_type_int = result.get("type", result.get("memory_type"))
                 return json.dumps({
                     "id": result.get("id"),
                     "concept": result.get("concept"),

@@ -1,4 +1,30 @@
+# Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Secrets and runtime configuration
 .env
-*.log
+.env.*
+!.env.example
+muninndb.json
+*.pem
+*.key
+
+# Memory/database exports
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+exports/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
